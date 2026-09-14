@@ -12,6 +12,7 @@ jieba>=0.42
 requests>=2.31
 pytest>=8.0
 pyjwt>=2.8
+python-multipart>=0.0.9
 
 # Agent 编排（LangGraph；若安装失败，agent/graph.py 会自动降级为手动执行器）
 langgraph>=0.2.0

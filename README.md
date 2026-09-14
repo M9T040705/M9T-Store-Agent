@@ -44,6 +44,7 @@
 - [🚀 快速开始](#-快速开始)
 - [📁 项目结构](#-项目结构)
 - [🗄️ 主数据管理](#️-主数据管理)
+- [📚 RAG 知识库管理后台](#-rag-知识库管理后台)
 - [🔧 配置说明](#-配置说明)
 - [🐳 Docker 部署](#-docker-部署)
 - [📄 License](#-license)
@@ -61,6 +62,7 @@
 | 📦 **库存查询** | 实时查询门店物料库存，低于补货线自动提醒 |
 | 🎁 **促销校验** | 核对促销活动规则、有效期、适用范围 |
 | 📚 **知识检索** | RAG 检索门店运营 SOP，支持口语化提问（同义词扩展 + 多路检索 + 重排） |
+| 🖥️ **知识库管理后台** | Vue 3 + Element Plus 可视化管理文档（上传/编辑/删除/分类），一键重建向量索引 |
 | 🔔 **监控告警** | 错误率/P95 延迟超阈值自动飞书告警，Prometheus 指标暴露 |
 | 📱 **网页前端** | 三标签页（对话/报修/告警），响应式设计，手机浏览器直接用 |
 | 🏢 **企业微信** | 群机器人主动推送 + 回调被动回复，维修工群内指令推进工单状态 |
@@ -399,6 +401,101 @@ crontab -e
 */10 * * * * cd /opt/project1_store_agent && python scripts/sync_inventory.py >> /var/log/sync_inventory.log 2>&1
 0 2 * * * cd /opt/project1_store_agent && python scripts/check_promotions.py >> /var/log/check_promotions.log 2>&1
 ```
+
+---
+
+## 📚 RAG 知识库管理后台
+
+基于 **Vue 3 + Element Plus** 的可视化知识库管理界面，对接 FastAPI + Milvus（含内存降级模式），支持文档的上传、编辑、删除、分类管理和一键重建向量索引。
+
+### ✨ 功能特性
+
+| 功能 | 说明 |
+|---|---|
+| 📊 **仪表盘** | 文档总数、Chunk 数、分类分布、向量引擎状态一目了然 |
+| 📁 **文档管理** | 列表展示、关键词搜索、分类筛选、分页浏览 |
+| ⬆️ **文档上传** | 支持 `.md` / `.txt` / `.pdf` 格式，拖拽上传，自动识别分类 |
+| ✏️ **在线编辑** | Markdown 内容编辑器，可修改标题、分类和正文内容 |
+| 🗑️ **文档删除** | 一键删除文档及元数据，删除后提示重建索引 |
+| 🔄 **索引重建** | 遍历所有文档 → 分块 → 向量化 → 入库 → 持久化，进度可视化 |
+| 🏷️ **自动分类** | 根据文件名和内容自动识别 12 类文档（设备报修/收银操作/客诉处理等） |
+
+### 🛠️ 技术栈
+
+| 层级 | 技术 |
+|---|---|
+| 前端框架 | Vue 3 + Vite |
+| UI 组件库 | Element Plus |
+| 路由 | Vue Router 4 |
+| HTTP 客户端 | Axios |
+| 后端 | FastAPI |
+| 向量库 | Milvus（生产）/ 内存向量库（演示） |
+
+### 📄 后端 API 接口
+
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| GET | `/api/kb/documents` | 文档列表（分页/搜索/分类筛选） |
+| GET | `/api/kb/documents/{id}` | 文档详情和内容 |
+| POST | `/api/kb/upload` | 上传文档（multipart/form-data） |
+| PUT | `/api/kb/documents/{id}` | 更新文档标题/分类/内容 |
+| DELETE | `/api/kb/documents/{id}` | 删除文档 |
+| POST | `/api/kb/rebuild` | 重建向量索引 |
+| GET | `/api/kb/stats` | 知识库统计信息 |
+| GET | `/api/kb/categories` | 文档分类列表 |
+
+### 🚀 快速启动
+
+```bash
+# 1. 启动后端服务
+cd project1_store_agent
+pip install -r requirements.txt
+uvicorn app.main:app --reload --port 8000
+
+# 2. 启动前端开发服务（新开终端）
+cd kb-admin
+npm install
+npm run dev
+```
+
+访问 **http://localhost:5173** 进入管理后台。
+
+### 📦 构建生产版本
+
+```bash
+cd kb-admin
+npm run build
+```
+
+构建产物在 `dist/` 目录，可部署到 Nginx 或由 FastAPI 静态文件托管。
+
+### 📁 项目结构
+
+```
+kb-admin/
+├── index.html              # 入口 HTML
+├── package.json            # 依赖配置
+├── vite.config.js          # Vite 配置（含 API 代理）
+├── README.md               # 前端说明文档
+└── src/
+    ├── main.js             # 应用入口
+    ├── App.vue             # 根组件（侧边栏布局）
+    ├── router.js           # 路由配置
+    ├── api/
+    │   └── index.js        # API 封装（Axios）
+    └── views/
+        ├── Dashboard.vue       # 仪表盘（统计卡片 + 分类分布）
+        ├── DocumentList.vue    # 文档列表（搜索/筛选/上传/删除）
+        ├── DocumentEdit.vue    # 文档编辑（Markdown 编辑器）
+        └── IndexManage.vue     # 索引管理（一键重建 + 状态监控）
+```
+
+### ⚠️ 注意事项
+
+- 上传或编辑文档后，**必须在「索引管理」页面点击「重建向量索引」**，新内容才能在对话中被检索到
+- 内存向量库模式下，索引持久化到 `data/index.json`，服务重启自动加载
+- Milvus 模式下，索引存储在 Milvus 的 `store_chunks` 集合中
+- 支持的文档格式：`.md`（Markdown）、`.txt`（纯文本）、`.pdf`（PDF 文档，自动提取文本）
 
 ---
 

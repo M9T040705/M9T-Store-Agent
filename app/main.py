@@ -63,6 +63,10 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="连锁门店运营智能助手", version="1.0.0", lifespan=lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
+# 注册知识库管理路由
+from .kb import router as kb_router
+app.include_router(kb_router)
+
 
 # ---------------- REST 对话 ----------------
 @app.post("/api/chat", response_model=ChatResponse)
